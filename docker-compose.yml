@@ -1,0 +1,85 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./cinema:/var/www/html:ro
+    depends_on:
+      - laravel
+      - fastapi
+    networks:
+      - cinema_network
+    restart: unless-stopped
+
+  laravel:
+    build:
+      context: ./cinema
+    volumes:
+      - ./cinema:/var/www/html
+      - ./cinema/storage:/var/www/html/storage  # Отдельный volume для storage
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=cinema_db
+      - DB_USERNAME=cinema_user
+      - DB_PASSWORD=cinema_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - cinema_network
+    restart: unless-stopped
+
+  fastapi:
+    build:
+      context: ./fastapi
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi:/app
+    environment:
+      - DATABASE_URL=mysql+asyncmy://cinema_user:cinema_password@mysql:3306/cinema_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - cinema_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: gbdj
+      MYSQL_DATABASE: cinema_db
+      MYSQL_USER: cinema_user
+      MYSQL_PASSWORD: cinema_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - cinema_network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - cinema_network
+    restart: unless-stopped
+
+networks:
+  cinema_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
