@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'fastapi' => [
+        'url' => env('FASTAPI_URL', 'http://fastapi:8000')
+    ]
+
 ];
