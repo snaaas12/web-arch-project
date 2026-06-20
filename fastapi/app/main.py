@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
-import redis.asyncio as redis
+from app.worker import booking_worker
+from app.redis_client import redis_client
 import asyncio
 import json
 
@@ -24,8 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключение к Redis
-redis_client = redis.from_url("redis://redis:6379/0", decode_responses=True)
 
 # --- Схемы данных ---
 class LockRequest(BaseModel):
@@ -130,7 +129,7 @@ async def check_seat(session_id: int, seat_id: int):
         "ttl_seconds": ttl if ttl > 0 else 0
     }
 
-# 🆕 WEBSOCKET ЭНДПОИНТ
+# WEBSOCKET ЭНДПОИНТ
 @app.websocket("/ws/session/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: int):
     """WebSocket для real-time обновлений схемы зала"""
@@ -158,3 +157,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: int):
     finally:
         await pubsub.unsubscribe(f"session:{session_id}:events")
         await pubsub.close()
+        
+@app.on_event("startup")
+async def startup_event():
+    """Запускаем background worker при старте приложения"""
+    asyncio.create_task(booking_worker.start())

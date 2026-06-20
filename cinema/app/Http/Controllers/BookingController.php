@@ -4,19 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Session;
-use App\Services\FastApiBookingService;
+use App\Services\RedisBookingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class BookingController extends Controller
 {
-    private FastApiBookingService $fastApiService;
+    private RedisBookingService $redisService;
 
-    public function __construct(FastApiBookingService $fastApiService)
+    public function __construct(RedisBookingService $redisService)
     {
-        $this->fastApiService = $fastApiService;
+        $this->redisService = $redisService;
     }
 
     /**
@@ -33,8 +32,8 @@ class BookingController extends Controller
         // Получаем текущего пользователя (для теста используем ID 1)
         $userId = Auth::id() ?? 1;
 
-        // 1. Пытаемся заблокировать места через FastAPI
-        $lockResult = $this->fastApiService->lockSeats(
+        // 1. Пытаемся заблокировать места через Redis (асинхронно через FastAPI worker)
+        $lockResult = $this->redisService->lockSeats(
             $validated['session_id'],
             $validated['seat_ids'],
             $userId
@@ -59,18 +58,27 @@ class BookingController extends Controller
             'locked_until' => now()->addMinutes(10),
         ]);
 
-        // 3. Генерируем QR-код
+        // 3. Генерируем QR-код через внешний API (НЕ требует расширений PHP)
         $qrCodeData = json_encode([
             'booking_id' => $booking->id,
             'session_id' => $booking->session_id,
             'seats' => $booking->seats,
             'user_id' => $booking->user_id,
         ]);
-        
+
         $qrCodePath = storage_path("app/public/qr_codes/booking_{$booking->id}.png");
-        \QrCode::format('png')->size(300)->generate($qrCodeData, $qrCodePath);
-        
-        $booking->update(['qr_code' => "qr_codes/booking_{$booking->id}.png"]);
+        $qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrCodeData);
+
+        // Скачиваем QR-код и сохраняем локально
+        $qrContent = @file_get_contents($qrCodeUrl);
+        if ($qrContent !== false) {
+            file_put_contents($qrCodePath, $qrContent);
+            $booking->update(['qr_code' => "qr_codes/booking_{$booking->id}.png"]);
+            $qrCodeUrlFinal = url("storage/{$booking->qr_code}");
+        } else {
+            Log::warning('Не удалось сгенерировать QR-код для бронирования ' . $booking->id);
+            $qrCodeUrlFinal = null;
+        }
 
         return response()->json([
             'success' => true,
@@ -80,7 +88,7 @@ class BookingController extends Controller
                 'session_id' => $booking->session_id,
                 'seats' => $booking->seats,
                 'total_price' => $booking->total_price,
-                'qr_code_url' => url("storage/{$booking->qr_code}"),
+                'qr_code_url' => $qrCodeUrlFinal,
             ],
         ], 201);
     }
