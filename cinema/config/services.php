@@ -37,6 +37,12 @@ return [
 
     'fastapi' => [
         'url' => env('FASTAPI_URL', 'http://fastapi:8000')
-    ]
+    ],
+
+    'github' => [
+    	'client_id' => env('GITHUB_CLIENT_ID'),
+    	'client_secret' => env('GITHUB_CLIENT_SECRET'),
+    	'redirect' => env('GITHUB_REDIRECT_URL'),
+    ],
 
 ];
