@@ -40,7 +40,6 @@ class MovieController extends Controller
             'duration' => 'required|integer|min:1|max:600',
             'genre' => 'nullable|string|max:100',
             'rating' => 'nullable|numeric|min:0|max:10',
-            'poster_url' => 'nullable|url|max:500',
             'age_restriction' => 'nullable|integer|min:0|max:21',
         ]);
 

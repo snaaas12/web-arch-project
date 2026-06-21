@@ -24,9 +24,6 @@
                         {{ __('Мои билеты') }}
                     </x-nav-link>
 
-                    <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
-                        {{ __('Профиль') }}
-                    </x-nav-link>
                 </div>
             </div>
 
@@ -79,7 +76,6 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            {{-- ✅ Добавили ссылку на фильмы --}}
             <x-responsive-nav-link :href="route('movies.index')" :active="request()->routeIs('movies.*')">
                 {{ __('Фильмы') }}
             </x-responsive-nav-link>
