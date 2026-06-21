@@ -30,16 +30,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach($movies as $movie)
                         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition">
-                            @if($movie->poster_url)
-                                <img src="{{ $movie->poster_url }}" alt="{{ $movie->title }}" 
-                                     class="w-full h-64 object-cover">
-                            @else
-                                <div class="w-full h-64 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                                    <svg class="w-20 h-20 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
-                                    </svg>
+                            {{-- Красивый градиент с иконкой фильма --}}
+                            <div class="w-full h-64 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 opacity-20">
+                                    <div class="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16"></div>
+                                    <div class="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20"></div>
                                 </div>
-                            @endif
+                                <div class="text-center z-10 p-4">
+                                    <svg class="w-24 h-24 text-white mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
+                                    </svg>
+                                    <div class="text-white font-bold text-lg drop-shadow-lg">{{ $movie->title }}</div>
+                                </div>
+                            </div>
                             
                             <div class="p-4">
                                 <h3 class="font-bold text-lg mb-2">{{ $movie->title }}</h3>

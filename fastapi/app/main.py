@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import List
 from app.worker import booking_worker
 from app.redis_client import redis_client
+from app.routers import movies_router, sessions_router
+from app.database import init_db_pool, close_db_pool
 import asyncio
 import json
 
@@ -25,6 +27,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(movies_router)
+app.include_router(sessions_router)
 
 # --- Схемы данных ---
 class LockRequest(BaseModel):
@@ -160,5 +164,14 @@ async def websocket_endpoint(websocket: WebSocket, session_id: int):
         
 @app.on_event("startup")
 async def startup_event():
-    """Запускаем background worker при старте приложения"""
+    """Инициализация при старте"""
+    await init_db_pool()
+    print("✅ MySQL connection pool initialized")
+    
     asyncio.create_task(booking_worker.start())
+    
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Очистка при остановке"""
+    await close_db_pool()
+    print("👋 MySQL connection pool closed")

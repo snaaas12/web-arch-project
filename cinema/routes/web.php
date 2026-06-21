@@ -22,6 +22,40 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('movies', App\Http\Controllers\MovieController::class);
+    Route::get('/api/me', function () {
+    $user = Auth::user();
+    
+    // Общий секрет (должен совпадать с FastAPI)
+    $secretKey = 'cinema-booking-secret-key-change-in-production';
+    
+    // Генерируем JWT вручную (как в методичке практики 11)
+    $header = rtrim(strtr(base64_encode(json_encode([
+        'alg' => 'HS256',
+        'typ' => 'JWT'
+    ])), '+/', '-_'), '=');
+    
+    $payload = rtrim(strtr(base64_encode(json_encode([
+        'user_id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'exp' => time() + 3600 // 1 час
+    ])), '+/', '-_'), '=');
+    
+    $signature = rtrim(strtr(base64_encode(
+        hash_hmac('sha256', "$header.$payload", $secretKey, true)
+    ), '+/', '-_'), '=');
+    
+    $jwt = "$header.$payload.$signature";
+    
+    return response()->json([
+        'token' => $jwt,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]
+    ]);
+})->name('api.me');
 });
 
 require __DIR__.'/auth.php';
