@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends
 from pydantic import BaseModel
 from typing import List
 from app.worker import booking_worker
 from app.redis_client import redis_client
 from app.routers import movies_router, sessions_router
 from app.database import init_db_pool, close_db_pool
+from app.auth import get_current_user_from_header
+
 import asyncio
 import json
 
@@ -76,15 +79,20 @@ async def root():
     return {"message": "Cinema Booking API is running", "status": "healthy"}
 
 @app.post("/api/v1/bookings/lock", response_model=LockResponse)
-async def lock_seats(request: LockRequest):
+async def lock_seats(
+    request: LockRequest,
+    user = Depends(get_current_user_from_header)  # ← Добавили проверку JWT
+):
     """Блокирует места и публикует событие в Redis для WebSocket"""
+    # Используем user_id из JWT, а не из запроса
+    actual_user_id = user['user_id']
     LOCK_TTL = 600
     
     lock_keys = [f"lock:session:{request.session_id}:seat:{seat_id}" for seat_id in request.seat_ids]
     
     pipe = redis_client.pipeline()
     for key in lock_keys:
-        pipe.setnx(key, str(request.user_id))
+        pipe.setnx(key, str(actual_user_id))
     
     results = await pipe.execute()
     
@@ -103,12 +111,12 @@ async def lock_seats(request: LockRequest):
     for key in lock_keys:
         await redis_client.expire(key, LOCK_TTL)
     
-    # 🆕 ПУБЛИКУЕМ СОБЫТИЕ В REDIS ДЛЯ WEBSOCKET
+    # ПУБЛИКУЕМ СОБЫТИЕ В REDIS ДЛЯ WEBSOCKET
     event = {
         "type": "seats_locked",
         "session_id": request.session_id,
         "seat_ids": request.seat_ids,
-        "locked_by": request.user_id,
+        "locked_by": actual_user_id,
         "locked_until": LOCK_TTL
     }
     await redis_client.publish(f"session:{request.session_id}:events", json.dumps(event))
